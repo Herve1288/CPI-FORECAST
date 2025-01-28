@@ -1,0 +1,135 @@
+---
+title: "CPI FORECAST PROJECT"
+author: "Christian"
+date: "`r Sys.Date()`"
+output: word_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(dplyr)
+```
+
+```{r}
+data <- read.csv("C:\\Users\\ENVY\\Downloads\\data1.csv")
+head(data, 2)
+
+```
+
+```{r}
+# Inspect the structure and first few rows
+str(data)
+# Summarize the dataset
+summary(data)
+# Check for missing values
+colSums(is.na(data))
+```
+
+```{r}
+# Step 2: Data Cleaning
+# Convert relevant columns to numeric
+numeric_columns <- c("Inflation.rates", "CPI", "Production.Tons", 
+                     "Monthly_Output_Gap", "total_rainfall", 
+                     "average_rainfall", "total_temp_max", "average_temp_max")
+data[numeric_columns] <- lapply(data[numeric_columns], function(x) as.numeric(as.character(x)))
+
+# Replace missing numeric values with the mean for each column
+data[numeric_columns] <- lapply(data[numeric_columns], function(col) {
+  ifelse(is.na(col), mean(col, na.rm = TRUE), col)
+})
+
+# Verify if all missing values have been addressed
+colSums(is.na(data))
+
+# Check the cleaned data
+summary(data)
+data
+
+```
+
+```{r}
+# Convert the Date column to a Date object with the correct format
+data$Date <- as.Date(data$Date, format = "%m/%d/%Y")
+
+# Verify the conversion
+head(data$Date)
+library(ggplot2)
+
+# Plot CPI trend over time
+ggplot(data, aes(x = Date, y = CPI)) +
+  geom_line(color = "blue") +
+  labs(title = "CPI Trend Over Time", x = "Date", y = "CPI") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+
+```
+
+```{r}
+# Visualize Inflation Rates
+ggplot(data, aes(x = Date, y = Inflation.rates)) +
+  geom_line(color = "orange") +
+  labs(title = "Inflation Rates Over Time", x = "Date", y = "Inflation Rate") +
+  theme_minimal()
+
+```
+
+```{r}
+# 1. Correlation Analysis
+# Determine how strongly CPI and Inflation Rate are correlated with external factors like Production.Tons, total_rainfall, and average_temp_max.
+# Compute correlations for numeric variables
+numeric_vars <- c("CPI", "Inflation.rates", "Production.Tons", "total_rainfall", "average_temp_max", "Monthly_Output_Gap")
+cor_matrix <- cor(data[numeric_vars], use = "complete.obs")
+
+# Visualize the correlation matrix
+library(corrplot)
+corrplot(cor_matrix, method = "color", addCoef.col = "black", tl.cex = 0.8)
+
+```
+
+# Key Observations from the Correlation Matrix
+Strong Correlation Between CPI and Inflation Rates:
+
+CPI and Inflation Rates have a moderate positive correlation (0.55). This is expected since inflation influences CPI.
+Negative Correlation Between CPI and Production:
+
+CPI and Production Tons have a negative correlation (-0.35). This could indicate that higher production lowers the cost of goods, affecting the CPI.
+Low Correlation with Rainfall and Temperature:
+
+Variables like total rainfall (0.03) and temperature (0.14) have weak correlations with CPI, indicating limited direct impact.
+Output Gap and Inflation:
+
+Monthly Output Gap has a weak negative correlation with Inflation Rates (-0.25), suggesting a potential lagged relationship worth exploring.
+
+```{r}
+# 1. Feature Selection for Modeling
+# Focus on features with higher correlations to CPI, such as Inflation Rates and Production Tons.
+# Include lagged variables (e.g., lagged CPI or Inflation Rates) to capture temporal dependencies.
+# 2. Lagged Analysis
+# Investigate lagged relationships between CPI and other variables, especially Inflation Rates and Output Gap.
+# This helps understand delayed effects and can improve forecasting accuracy.
+# Create lagged features for CPI and Inflation Rates
+data <- data %>%
+  mutate(CPI_lag1 = lag(CPI, 1),
+         CPI_lag2 = lag(CPI, 2),
+         Inflation_lag1 = lag(Inflation.rates, 1),
+         Inflation_lag2 = lag(Inflation.rates, 2))
+
+# Check correlation of lagged variables
+cor(data[, c("CPI", "CPI_lag1", "CPI_lag2", "Inflation.rates", "Inflation_lag1", "Inflation_lag2")], use = "complete.obs")
+
+
+```
+
+
+```{r}
+#1. Feature Selection and Engineering:
+#Include lagged variables for CPI and inflation rates (CPI_lag1, CPI_lag2, Inflation_lag1, Inflation_lag2) as predictors.
+#Add external variables like Production Tons, Rainfall, and Temperature if they are significant
+# Select features for the model
+features <- c("CPI_lag1", "CPI_lag2", "Inflation_lag1", "Inflation_lag2", "Production.Tons", "total_rainfall", "average_temp_max")
+features
+
+
+```
+
